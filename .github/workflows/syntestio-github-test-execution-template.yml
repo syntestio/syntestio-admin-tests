@@ -136,8 +136,12 @@ jobs:
 
           # Run tests and capture output
           echo "Running tests with command: syn --config \"$CONFIG_FILE\" ${{ inputs.cliArguments }}"
-          syn --config "$CONFIG_FILE" ${{ inputs.cliArguments }} 2>&1 | grep -v "Connection refused (localhost:" | tee syntestio_test_output.log
+          # Run with tee to capture logs, but don't filter in the pipeline to avoid losing exit code
+          syn --config "$CONFIG_FILE" ${{ inputs.cliArguments }} 2>&1 | tee full_test_output.log
           TEST_EXIT_CODE=${PIPESTATUS[0]}
+
+          # Filter out connection refused messages for the cleaner log file
+          cat full_test_output.log | grep -v "Connection refused (localhost:" > syntestio_test_output.log
 
           echo "Test execution completed with exit code: $TEST_EXIT_CODE"
 
