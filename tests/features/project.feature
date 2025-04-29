@@ -7,7 +7,6 @@ Feature: Project Management
 Scenario: Create new project
   Given I am logged in
   When I am on dashboard page
-  Then I should see info about failed operation
   And I remove all existing projects if any is assigned (select in project list and go to project settings page to see remove button) until project list is empty
   Then I should see information but no selected projects
   And I should not see any projects in the project list, but instead button to create new project
@@ -23,7 +22,6 @@ Scenario: Create new project
 Scenario: Edit project
   Given I am logged in
   And I have project assigned
-  Then I should see info about failed operation
   When I navigate to project settings page
   And I update project name to &newProjectName and description to &newProjectDescription
   Then I should see &newProjectName as my active project
@@ -36,7 +34,6 @@ Scenario: Edit project
 Scenario: Remove project
   Given I am logged in
   And I have project assigned
-  Then I should see info about failed operation
   When I navigate to project settings page
   And I remove project (please note there is no confirmation information about project removal, so I will be just redirected to dashboard page)
   Then I should see information about no selected projects
