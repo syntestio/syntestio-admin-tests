@@ -18,7 +18,7 @@ jobs:
     with:
       testConfigFile: 'config.json'
       os: 'linux'
-      cliArguments: '--headless --isDebug'
+      cliArguments: '--headless'
       testResultsDir: 'test-results'
       continueOnError: true
     secrets:
