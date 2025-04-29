@@ -1,0 +1,166 @@
+name: Test Template
+
+on:
+  workflow_call:
+    inputs:
+      testConfigFile:
+        required: true
+        type: string
+      testResultsDir:
+        required: false
+        type: string
+        default: 'syntestio-test-results'
+      os:
+        required: true
+        type: string
+        default: 'linux'
+      runner:
+        required: false
+        type: string
+        default: 'ubuntu-latest'
+      cliArguments:
+        required: false
+        type: string
+        default: '--headless'
+      continueOnError:
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      USER_EMAIL:
+        required: true
+      PASSWORD:
+        required: true
+      ANOTHER_USER_EMAIL:
+        required: true
+      SYNTESTIO_API_KEY:
+        required: true
+
+jobs:
+  run-tests:
+    runs-on: ${{ inputs.runner != '' && inputs.runner || format('{0}-latest', inputs.os) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+
+      - name: Create artifacts directory
+        run: |
+          mkdir -p ${{ github.workspace }}/${{ inputs.testResultsDir }}
+
+      - name: Copy test files
+        run: |
+          # Define the target config filename
+          TARGET_CONFIG_FILENAME="config.json"
+          SOURCE_CONFIG_PATH="${{ inputs.testConfigFile }}"
+          TARGET_CONFIG_PATH="${{ github.workspace }}/$TARGET_CONFIG_FILENAME"
+
+          # Check if source is a relative path from workspace
+          if [[ "$SOURCE_CONFIG_PATH" != /* ]]; then
+            FULL_SOURCE_PATH="${{ github.workspace }}/$SOURCE_CONFIG_PATH"
+          else
+            FULL_SOURCE_PATH="$SOURCE_CONFIG_PATH"
+          fi
+
+          # Get real paths to ensure accurate comparison
+          REAL_SOURCE=$(realpath -e "$FULL_SOURCE_PATH" 2>/dev/null || echo "$FULL_SOURCE_PATH")
+          REAL_TARGET=$(realpath -m "$TARGET_CONFIG_PATH" 2>/dev/null || echo "$TARGET_CONFIG_PATH")
+
+          # Check if they resolve to the same file
+          if [ "$REAL_SOURCE" == "$REAL_TARGET" ]; then
+            echo "Source config file and target config file are the same. Skipping copy."
+          else
+            echo "Copying $SOURCE_CONFIG_PATH to $TARGET_CONFIG_PATH"
+            cp "$FULL_SOURCE_PATH" "$TARGET_CONFIG_PATH"
+          fi
+
+          # Copy feature files from the config directory
+          CONFIG_DIR=$(dirname ${{ inputs.testConfigFile }})
+          if [ -d "$CONFIG_DIR" ]; then
+              echo "Copying feature files from $CONFIG_DIR to ${{ github.workspace }}/"
+              # Use find and cp to handle potential 'Argument list too long' issues and avoid errors if no .feature files exist
+              find "$CONFIG_DIR" -maxdepth 1 -name '*.feature' -exec cp {} ${{ github.workspace }}/ \; || true
+              # Copy feature files from subdirectories as well, if any
+              find "$CONFIG_DIR" -mindepth 2 -name '*.feature' -exec cp --parents {} ${{ github.workspace }}/ \; || true
+          else
+              echo "Feature file directory $CONFIG_DIR not found, skipping feature file copy."
+          fi
+
+      - name: Install CLI package
+        run: |
+          npm install -g @syntestio/cli-${{ inputs.os }} --verbose
+
+      - name: Run test scenario
+        continue-on-error: ${{ inputs.continueOnError }}
+        env:
+          USER_EMAIL: ${{ secrets.USER_EMAIL }}
+          PASSWORD: ${{ secrets.PASSWORD }}
+          ANOTHER_USER_EMAIL: ${{ secrets.ANOTHER_USER_EMAIL }}
+          SYNTESTIO_API_KEY: ${{ secrets.SYNTESTIO_API_KEY }}
+        run: |
+          # Set UTF-8 encoding
+          export LANG=en_US.UTF-8
+          export LC_ALL=en_US.UTF-8
+
+          echo "Starting test execution..."
+
+          # Create secrets.feature file
+          mkdir -p tests
+          cat > tests/secrets.feature << EOF
+          @var userEmail = $USER_EMAIL
+          @var password = $PASSWORD
+          @var anotherUserEmail = $ANOTHER_USER_EMAIL
+          EOF
+
+          # Update config.json with API key
+          echo "Updating config.json with API key..."
+          if ! command -v jq &> /dev/null; then
+            echo "jq could not be found, installing..."
+            # Update package list and install jq quietly
+            sudo apt-get update -qq && sudo apt-get install -y -qq jq
+          fi
+
+          CONFIG_FILE="${{ github.workspace }}/config.json"
+          if [ -f "$CONFIG_FILE" ]; then
+            # Use jq to update the apiKey and save to a temporary file, then replace the original
+            jq --arg key "$SYNTESTIO_API_KEY" '.apiKey = $key' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+            echo "config.json updated successfully."
+          else
+            echo "::error::Config file $CONFIG_FILE not found!"
+            exit 1
+          fi
+
+          # Run tests and capture output
+          syn --config "$CONFIG_FILE" ${{ inputs.cliArguments }} 2>&1 | tee syntestio_test_output.log
+          TEST_EXIT_CODE=${PIPESTATUS[0]}
+
+          echo "Test execution completed with exit code: $TEST_EXIT_CODE"
+
+          # Copy test reports to artifacts
+          if ls TestReport_*.html 1> /dev/null 2>&1; then
+            echo "Copying test reports to artifacts directory..."
+            cp TestReport_*.html ${{ github.workspace }}/${{ inputs.testResultsDir }}/
+            cp syntestio_test_output.log ${{ github.workspace }}/${{ inputs.testResultsDir }}/
+          else
+            echo "No test reports found!"
+            echo "::warning::No test reports were generated"
+          fi
+
+          # Set job status based on test results
+          if [ $TEST_EXIT_CODE -ne 0 ]; then
+            echo "::warning::Tests failed with exit code: $TEST_EXIT_CODE"
+            exit 1
+          else
+            echo "All tests passed successfully"
+          fi
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: syntestio-test-reports
+          path: ${{ github.workspace }}/${{ inputs.testResultsDir }}/

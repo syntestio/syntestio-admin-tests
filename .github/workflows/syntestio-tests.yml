@@ -1,0 +1,28 @@
+name: Run Syntestio Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      test_tags:
+        description: 'Test tags to run (comma-separated)'
+        required: false
+        default: ''
+
+jobs:
+  run-tests:
+    uses: ./.github/workflows/syntestio-github-test-execution-template.yml
+    with:
+      testConfigFile: 'config.json'
+      os: 'linux'
+      cliArguments: '--headless --isDebug'
+      testResultsDir: 'test-results'
+      continueOnError: true
+    secrets:
+      USER_EMAIL: ${{ secrets.USER_EMAIL }}
+      PASSWORD: ${{ secrets.PASSWORD }}
+      ANOTHER_USER_EMAIL: ${{ secrets.ANOTHER_USER_EMAIL }}
+      SYNTESTIO_API_KEY: ${{ secrets.SYNTESTIO_API_KEY }}

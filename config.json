@@ -1,0 +1,13 @@
+{
+    "apiKey": "[TO BE REPLACED]",
+    "appUrl": "https://syntestio.com",
+    "scenarioFileDirs": [
+      "tests"
+    ],
+    "isDebug": false,
+    "isReasoning": false,
+    "headless": true,
+    "saveResult": true,
+    "retryWhenFail": 1,
+    "tags": []
+  }
