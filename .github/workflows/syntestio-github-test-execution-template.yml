@@ -135,7 +135,8 @@ jobs:
           fi
 
           # Run tests and capture output
-          syn --config "$CONFIG_FILE" ${{ inputs.cliArguments }} 2>&1 | tee syntestio_test_output.log
+          echo "Running tests with command: syn --config \"$CONFIG_FILE\" ${{ inputs.cliArguments }}"
+          syn --config "$CONFIG_FILE" ${{ inputs.cliArguments }} 2>&1 | grep -v "Connection refused (localhost:" | tee syntestio_test_output.log
           TEST_EXIT_CODE=${PIPESTATUS[0]}
 
           echo "Test execution completed with exit code: $TEST_EXIT_CODE"
