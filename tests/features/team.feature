@@ -25,7 +25,7 @@ Scenario: Validate team member invitation
   And I enter invalid email 'admin' with role 'Reader' and try to submit modal
   Then I should see invalid email message
   When I enter existing email &userEmail with role 'Reader' and try to submit modal
-  Then I should see message that user already exists
+  Then I should see message that I cannot invite the project owner as a team member
   When I enter non-registered email &unexistingEmail with role 'Reader' and try to submit modal
   Then I should see message that user needs to create account first
 

@@ -111,9 +111,9 @@ jobs:
           # Create secrets.feature file
           mkdir -p tests
           cat > tests/secrets.feature << EOF
-          @var userEmail = $USER_EMAIL
-          @var password = $PASSWORD
-          @var anotherUserEmail = $ANOTHER_USER_EMAIL
+          @var* userEmail = $USER_EMAIL
+          @var* password = $PASSWORD
+          @var* anotherUserEmail = $ANOTHER_USER_EMAIL
           EOF
 
           # Update config.json with API key

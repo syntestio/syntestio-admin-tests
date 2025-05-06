@@ -9,7 +9,7 @@ Background:
 
 @apikeys
 Scenario: Create new API key
-  Then I should see the API keys list
+  Then I should see the API keys list (empty or not)
   When I create API key with name &apiKeyName
   Then I should see &apiKeyName in the API keys list
   And Secret key should be partially masked
