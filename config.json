@@ -9,5 +9,5 @@
     "headless": true,
     "saveResult": true,
     "retryWhenFail": 1,
-    "tags": ["apikeys"]
+    "tags": []
   }
